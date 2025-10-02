@@ -133,22 +133,32 @@
     }
 
     function updateBall() {
-      let newX = ball.x + velocity.x;
-      let newY = ball.y + velocity.y;
+  let newX = ball.x + velocity.x;
+  let newY = ball.y + velocity.y;
 
-      const row = Math.floor(newY / tileSize);
-      const col = Math.floor(newX / tileSize);
+  const row = Math.floor(newY / tileSize);
+  const col = Math.floor(newX / tileSize);
 
-      if (maze[row] && maze[row][col] !== "1") {
-        ball.x = newX;
-        ball.y = newY;
-      }
+  if (maze[row] && maze[row][col] !== "1") {
+    // Free path → move
+    ball.x = newX;
+    ball.y = newY;
+  } else {
+    // Hit a wall → bounce back a bit
+    ball.x -= velocity.x * 0.5;
+    ball.y -= velocity.y * 0.5;
 
-      if (maze[row] && maze[row][col] === "E") {
-        alert("🎉 You passed Level 1! Moving to Level 2...");
-        window.location.href = "level2.html";
-      }
-    }
+    // Reverse velocity (dampened bounce)
+    velocity.x *= -0.3;
+    velocity.y *= -0.3;
+  }
+
+  if (maze[row] && maze[row][col] === "E") {
+    alert("🎉 You passed Level 1! Moving to Level 2...");
+    window.location.href = "level2.html";
+  }
+}
+
 
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);

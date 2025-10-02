@@ -24,13 +24,23 @@
       width: 100%; height: 100%;
       background: rgba(0,0,0,0.9);
       color: white;
+      
+      /* --- The Fix --- */
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column; /* Stack the items vertically */
+      align-items: center;    /* Center the stacked items horizontally */
+      justify-content: center; /* Center the stacked items vertically */
+      /* --------------- */
+      
       font-size: 20px;
       z-index: 10;
-      text-align: center;
+      text-align: center; /* This still helps with text wrapping */
       padding: 20px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
     }
     button {
       margin-top: 20px;

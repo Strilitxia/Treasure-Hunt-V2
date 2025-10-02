@@ -29,6 +29,13 @@
       justify-content: center;
       font-size: 20px;
       z-index: 10;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
     }
   </style>
 </head>
@@ -45,50 +52,71 @@
     const canvas = document.getElementById("mazeCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Maze grid: 1 = wall, 0 = path, S = start, E = end
+    // Example 15x15 maze (expandable to 20x20 etc.)
     const maze = [
-  "111111111111111",
-  "1S0010001000001",
-  "111010101011101",
-  "100000101010001",
-  "101111101010111",
-  "101000000010001",
-  "101011111111101",
-  "101010000000101",
-  "101010111110101",
-  "101000000010101",
-  "101111111010101",
-  "100000100010101",
-  "111110101110101",
-  "1000000000000E1",
-  "111111111111111"
-];
+      "111111111111111",
+      "1S000000000000E1",
+      "1011111111111011",
+      "1000000000000011",
+      "1110111110111101",
+      "1000100000100001",
+      "1011101111101111",
+      "1000000000000001",
+      "1111111111111101",
+      "1000000000000001",
+      "1011111011111111",
+      "1000000010000001",
+      "1111011110111101",
+      "1000000000000001",
+      "1111111111111111"
+    ];
 
-    const tileSize = 40;
-    let ball = { x: 1 * tileSize + 20, y: 1 * tileSize + 20, r: 10 };
+    const tileSize = 40; // Maze tile size
+    const viewWidth = canvas.width;
+    const viewHeight = canvas.height;
+
+    // Find start position
+    let startRow = 1, startCol = 1;
+    for (let r = 0; r < maze.length; r++) {
+      for (let c = 0; c < maze[r].length; c++) {
+        if (maze[r][c] === "S") { startRow = r; startCol = c; }
+      }
+    }
+
+    let ball = { 
+      x: startCol * tileSize + tileSize/2, 
+      y: startRow * tileSize + tileSize/2, 
+      r: 10 
+    };
     let velocity = { x: 0, y: 0 };
 
-    function drawMaze() {
-      for (let row = 0; row < maze.length; row++) {
-        for (let col = 0; col < maze[row].length; col++) {
+    function drawMaze(cameraX, cameraY) {
+      const rows = maze.length;
+      const cols = maze[0].length;
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
           let cell = maze[row][col];
+          let x = col * tileSize - cameraX;
+          let y = row * tileSize - cameraY;
+
           if (cell === "1") {
             ctx.fillStyle = "#444";
-            ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+            ctx.fillRect(x, y, tileSize, tileSize);
           } else if (cell === "S") {
             ctx.fillStyle = "green";
-            ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+            ctx.fillRect(x, y, tileSize, tileSize);
           } else if (cell === "E") {
             ctx.fillStyle = "gold";
-            ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+            ctx.fillRect(x, y, tileSize, tileSize);
           }
         }
       }
     }
 
-    function drawBall() {
+    function drawBall(cameraX, cameraY) {
       ctx.beginPath();
-      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.arc(ball.x - cameraX, ball.y - cameraY, ball.r, 0, Math.PI * 2);
       ctx.fillStyle = "red";
       ctx.fill();
       ctx.closePath();
@@ -98,26 +126,35 @@
       let newX = ball.x + velocity.x;
       let newY = ball.y + velocity.y;
 
-      // Check collisions
       const row = Math.floor(newY / tileSize);
       const col = Math.floor(newX / tileSize);
-      if (maze[row][col] !== "1") {
+
+      if (maze[row] && maze[row][col] !== "1") {
         ball.x = newX;
         ball.y = newY;
       }
 
-      // Check if reached end
-      if (maze[row][col] === "E") {
-        alert("🎉 You passed Trial 1! Moving to Trial 2...");
-        window.location.href = "level2.html"; // Change to next level file
+      if (maze[row] && maze[row][col] === "E") {
+        alert("🎉 You passed Level 1! Moving to Level 2...");
+        window.location.href = "level2.html";
       }
     }
 
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawMaze();
+
+      // Camera follows ball (centered)
+      let cameraX = ball.x - viewWidth / 2;
+      let cameraY = ball.y - viewHeight / 2;
+
+      // Keep camera inside maze boundaries
+      cameraX = Math.max(0, Math.min(cameraX, maze[0].length * tileSize - viewWidth));
+      cameraY = Math.max(0, Math.min(cameraY, maze.length * tileSize - viewHeight));
+
+      drawMaze(cameraX, cameraY);
       updateBall();
-      drawBall();
+      drawBall(cameraX, cameraY);
+
       requestAnimationFrame(gameLoop);
     }
 
@@ -126,12 +163,23 @@
       gameLoop();
     }
 
-    // Handle accelerometer
+    // Accelerometer
     window.addEventListener("deviceorientation", function(event) {
-      const tiltX = event.gamma; // left-right
-      const tiltY = event.beta;  // forward-back
-      velocity.x = tiltX / 10; 
-      velocity.y = tiltY / 10; 
+      const tiltX = event.gamma;
+      const tiltY = event.beta;
+      velocity.x = tiltX / 10;
+      velocity.y = tiltY / 10;
+    });
+
+    // Fallback: Arrow key control for testing on PC
+    window.addEventListener("keydown", function(e) {
+      if (e.key === "ArrowUp") velocity.y = -2;
+      if (e.key === "ArrowDown") velocity.y = 2;
+      if (e.key === "ArrowLeft") velocity.x = -2;
+      if (e.key === "ArrowRight") velocity.x = 2;
+    });
+    window.addEventListener("keyup", function() {
+      velocity.x = 0; velocity.y = 0;
     });
   </script>
 </body>

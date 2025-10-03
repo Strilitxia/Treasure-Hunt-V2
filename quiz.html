@@ -16,6 +16,11 @@
       min-height: 100vh; 
       margin: 0;
       padding: 20px;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
     
     #quizContainer { 
@@ -107,6 +112,10 @@
       color: #e6eef8; 
       font-size: 16px;
       transition: all 0.3s ease;
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
     }
     
     input[type=text]:focus {
@@ -228,34 +237,6 @@
       max-width: 400px;
       padding: 0 20px;
     }
-
-    /* Prevent text selection */
-    body {
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-      -webkit-touch-callout: none; /* iOS Safari */
-    }
-
-    input[type=text] {
-      -webkit-user-select: text;
-      -moz-user-select: text;
-      -ms-user-select: text;
-      user-select: text;
-    }
-
-    /* Prevent screenshot overlay */
-    #quizContainer::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: -1;
-    }
   </style>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -341,7 +322,7 @@
     let isPenaltyActive = false;
     let penaltyEndTime = 0;
     let penaltyCount = 0;
-    let currentPenaltyDuration = 15000; // Start with 15 seconds
+    let currentPenaltyDuration = 15000;
     let quizStartTime = 0;
 
     // Check for existing penalty on page load
@@ -363,323 +344,18 @@
         const remaining = endTime - Date.now();
         
         if (remaining > 0) {
-          // Still in penalty period
           penaltyEndTime = endTime;
           isPenaltyActive = true;
           showPenaltyOverlay('Page reload detected! 🚫', remaining);
         } else {
-          // Penalty expired, clear it
           sessionStorage.removeItem('penaltyEndTime');
         }
-      }
-    }
-
-    // Enhanced penalty trigger with session storage
-    function triggerPenalty(reason) {
-      if (isPenaltyActive) return;
-      
-      penaltyCount++;
-      currentPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000); // 15s + 45s for each additional violation
-      isPenaltyActive = true;
-      penaltyEndTime = Date.now() + currentPenaltyDuration;
-      
-      // Save to sessionStorage
-      sessionStorage.setItem('penaltyEndTime', penaltyEndTime.toString());
-      sessionStorage.setItem('penaltyCount', penaltyCount.toString());
-      
-      showPenaltyOverlay(reason, currentPenaltyDuration);
-    }
-
-    function showPenaltyOverlay(reason, duration) {
-      // Remove existing overlay if present
-      const existingOverlay = document.getElementById('penaltyOverlay');
-      if (existingOverlay) {
-        existingOverlay.remove();
-      }
-
-      // Create penalty overlay
-      const overlay = document.createElement('div');
-      overlay.className = 'penalty-overlay';
-      overlay.id = 'penaltyOverlay';
-      
-      const initialSeconds = Math.ceil(duration / 1000);
-      
-      overlay.innerHTML = `
-        <div class="penalty-message">${reason}</div>
-        <div class="penalty-timer" id="penaltyTimer">${initialSeconds}</div>
-        <div class="penalty-warning">⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br>${penaltyCount > 1 ? `<strong style="color: #ef4444;">Violation #${penaltyCount} - Penalty increased!</strong><br><small>Reloading won't help!</small>` : ''}</div>
-      `;
-      document.body.appendChild(overlay);
-
-      // Update timer every 100ms
-      const timerInterval = setInterval(() => {
-        const remaining = Math.ceil((penaltyEndTime - Date.now()) / 1000);
-        const timerEl = document.getElementById('penaltyTimer');
-        
-        if (timerEl) {
-          timerEl.textContent = remaining;
-        }
-
-        if (remaining <= 0) {
-          clearInterval(timerInterval);
-          const overlayEl = document.getElementById('penaltyOverlay');
-          if (overlayEl) {
-            overlayEl.remove();
-          }
-          isPenaltyActive = false;
-          sessionStorage.removeItem('penaltyEndTime');
-        }
-      }, 100);
-    }
-
-    function addPenaltyTime() {
-      penaltyCount++;
-      penaltyEndTime += 45000; // Add 45 more seconds
-      
-      // Update sessionStorage
-      sessionStorage.setItem('penaltyEndTime', penaltyEndTime.toString());
-      sessionStorage.setItem('penaltyCount', penaltyCount.toString());
-      
-      const messageEl = document.querySelector('.penalty-message');
-      const warningEl = document.querySelector('.penalty-warning');
-      
-      if (messageEl) {
-        messageEl.textContent = 'Stop trying to cheat! ⛔';
-        messageEl.style.animation = 'none';
-        setTimeout(() => {
-          messageEl.style.animation = 'fadeIn 0.5s ease';
-        }, 10);
-      }
-      
-      if (warningEl) {
-        warningEl.innerHTML = `⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br><strong style="color: #ef4444;">Violation #${penaltyCount} - +45 seconds added!</strong><br><small>Reloading won't help!</small>`;
-      }
-    }
-
-    // Detect page reload/refresh attempts during quiz
-    window.addEventListener('beforeunload', function(e) {
-      if (currentQuestionIndex < totalQuestions && currentQuestionIndex > 0) {
-        // User is trying to reload during quiz
-        penaltyCount++;
-        const newPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000);
-        const newPenaltyEnd = Date.now() + newPenaltyDuration;
-        
-        sessionStorage.setItem('penaltyEndTime', newPenaltyEnd.toString());
-        sessionStorage.setItem('penaltyCount', penaltyCount.toString());
-        
-        // Show browser warning (optional)
-        e.preventDefault();
-        e.returnValue = 'Reloading will trigger an anti-cheat penalty!';
-        return e.returnValue;
-      }
-    });
-
-    // Anti-cheat: Detect window visibility changes
-    document.addEventListener('visibilitychange', function() {
-      if (document.hidden && currentQuestionIndex < totalQuestions) {
-        if (isPenaltyActive) {
-          // Add more time if already in penalty
-          addPenaltyTime();
-        } else {
-          triggerPenalty('Switching tabs detected! 🚫');
-        }
-      }
-    });
-
-    // Anti-cheat: Detect window blur (switching windows)
-    window.addEventListener('blur', function() {
-      if (currentQuestionIndex < totalQuestions) {
-        if (isPenaltyActive) {
-          // Add more time if already in penalty
-          addPenaltyTime();
-        } else {
-          triggerPenalty('Leaving the window detected! 🚫');
-        }
-      }
-    });
-
-    // Anti-cheat: Prevent screenshots
-    document.addEventListener('keyup', function(e) {
-      // Detect Print Screen, Windows Key + Shift + S (Snipping Tool), etc.
-      if (e.key === 'PrintScreen' || e.keyCode === 44) {
-        e.preventDefault();
-        triggerPenalty('Screenshot attempt detected! 🚫');
-      }
-    });
-
-    document.addEventListener('keydown', function(e) {
-      // Detect Print Screen
-      if (e.key === 'PrintScreen' || e.keyCode === 44) {
-        e.preventDefault();
-        triggerPenalty('Screenshot attempt detected! 🚫');
-      }
-      // Detect Windows + Shift + S (Windows Snipping Tool)
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
-        e.preventDefault();
-        triggerPenalty('Screenshot attempt detected! 🚫');
-      }
-      // Detect Cmd + Shift + 3/4/5 (Mac screenshots)
-      if (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) {
-        e.preventDefault();
-        triggerPenalty('Screenshot attempt detected! 🚫');
-      }
-    });
-
-    // Anti-cheat: Prevent right-click context menu
-    document.addEventListener('contextmenu', function(e) {
-      e.preventDefault();
-      return false;
-    });
-
-    // Anti-cheat: Prevent copying
-    document.addEventListener('copy', function(e) {
-      if (e.target.id !== 'answer') {
-        e.preventDefault();
-        triggerPenalty('Copying content detected! 🚫');
-        return false;
-      }
-    });
-
-    // Anti-cheat: Detect mobile screenshot attempts (Android/iOS)
-    // Detect when page loses focus (happens during screenshot on mobile)
-    let screenshotDetectionTimeout;
-    
-    document.addEventListener('visibilitychange', function() {
-      if (document.hidden) {
-        screenshotDetectionTimeout = setTimeout(function() {
-          // If page was hidden for very short time (typical screenshot behavior)
-          if (!document.hidden) {
-            triggerPenalty('Screenshot attempt detected! 🚫');
-          }
-        }, 100);
-      } else {
-        clearTimeout(screenshotDetectionTimeout);
-      }
-    });
-
-    // Detect screen recording on iOS/Android
-    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-      const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia;
-      navigator.mediaDevices.getDisplayMedia = function() {
-        triggerPenalty('Screen recording detected! 🚫');
-        return Promise.reject(new Error('Screen recording is not allowed'));
-      };
-    }
-
-    // Prevent long-press on mobile (triggers save/screenshot options)
-    let longPressTimer;
-    document.addEventListener('touchstart', function(e) {
-      if (e.target.id !== 'answer') {
-        longPressTimer = setTimeout(function() {
-          e.preventDefault();
-          triggerPenalty('Long press detected! 🚫');
-        }, 500);
-      }
-    });
-
-    document.addEventListener('touchend', function() {
-      clearTimeout(longPressTimer);
-    });
-
-    document.addEventListener('touchmove', function() {
-      clearTimeout(longPressTimer);
-    });
-
-    // Detect power button + volume down (Android screenshot combo)
-    let lastKeyTime = 0;
-    document.addEventListener('keydown', function(e) {
-      const currentTime = Date.now();
-      // If multiple keys pressed within 100ms (screenshot combo)
-      if (currentTime - lastKeyTime < 100) {
-        triggerPenalty('Screenshot attempt detected! 🚫');
-      }
-      lastKeyTime = currentTime;
-    });
-
-    // Prevent iOS screenshot sharing
-    if (navigator.share) {
-      const originalShare = navigator.share;
-      navigator.share = function() {
-        triggerPenalty('Sharing attempt detected! 🚫');
-        return Promise.reject(new Error('Sharing is not allowed'));
-      };
-    }
-
-    // Monitor for screenshot-like patterns
-    window.addEventListener('resize', function() {
-      // Screenshots sometimes trigger resize events on mobile
-      if (document.hidden && currentQuestionIndex < totalQuestions) {
-        triggerPenalty('Suspicious activity detected! 🚫');
-      }
-    });
-
-    function triggerPenalty(reason) {
-      if (isPenaltyActive) return;
-      
-      penaltyCount++;
-      currentPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000); // 15s + 45s for each additional violation
-      isPenaltyActive = true;
-      penaltyEndTime = Date.now() + currentPenaltyDuration;
-
-      // Create penalty overlay
-      const overlay = document.createElement('div');
-      overlay.className = 'penalty-overlay';
-      overlay.id = 'penaltyOverlay';
-      
-      const initialSeconds = Math.ceil(currentPenaltyDuration / 1000);
-      
-      overlay.innerHTML = `
-        <div class="penalty-message">${reason}</div>
-        <div class="penalty-timer" id="penaltyTimer">${initialSeconds}</div>
-        <div class="penalty-warning">⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br>${penaltyCount > 1 ? `<strong style="color: #ef4444;">Violation #${penaltyCount} - Penalty increased!</strong>` : ''}</div>
-      `;
-      document.body.appendChild(overlay);
-
-      // Update timer every 100ms
-      const timerInterval = setInterval(() => {
-        const remaining = Math.ceil((penaltyEndTime - Date.now()) / 1000);
-        const timerEl = document.getElementById('penaltyTimer');
-        
-        if (timerEl) {
-          timerEl.textContent = remaining;
-        }
-
-        if (remaining <= 0) {
-          clearInterval(timerInterval);
-          const overlayEl = document.getElementById('penaltyOverlay');
-          if (overlayEl) {
-            overlayEl.remove();
-          }
-          isPenaltyActive = false;
-        }
-      }, 100);
-    }
-
-    function addPenaltyTime() {
-      penaltyCount++;
-      penaltyEndTime += 45000; // Add 45 more seconds
-      
-      const messageEl = document.querySelector('.penalty-message');
-      const warningEl = document.querySelector('.penalty-warning');
-      
-      if (messageEl) {
-        messageEl.textContent = 'Stop trying to cheat! ⛔';
-        messageEl.style.animation = 'none';
-        setTimeout(() => {
-          messageEl.style.animation = 'fadeIn 0.5s ease';
-        }, 10);
-      }
-      
-      if (warningEl) {
-        warningEl.innerHTML = `⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br><strong style="color: #ef4444;">Violation #${penaltyCount} - +45 seconds added!</strong>`;
       }
     }
 
     function startQuiz() {
-      // Check for existing penalty first
       checkExistingPenalty();
       
-      // Initialize quiz start time
       if (!sessionStorage.getItem('quizStartTime')) {
         quizStartTime = Date.now();
         sessionStorage.setItem('quizStartTime', quizStartTime.toString());
@@ -694,14 +370,13 @@
       document.getElementById('scoreDisplay').style.display = 'inline-block';
       updateScore();
       
-      // Only show question if not in penalty
       if (!isPenaltyActive) {
         showQuestion();
       }
     }
 
     function updateScore() {
-      document.getElementById('scoreDisplay').textContent = `Score: ${correctAnswers}/${totalQuestions}`;
+      document.getElementById('scoreDisplay').textContent = 'Score: ' + correctAnswers + '/' + totalQuestions;
     }
 
     function updateProgress() {
@@ -722,7 +397,7 @@
       const avatarEl = document.getElementById('clairAvatar');
       const submitBtn = document.getElementById('submitBtn');
       
-      questionEl.textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}: ${current.question}`;
+      questionEl.textContent = 'Question ' + (currentQuestionIndex + 1) + ' of ' + totalQuestions + ': ' + current.question;
       answerEl.value = '';
       answerEl.disabled = false;
       resultEl.textContent = '';
@@ -747,7 +422,9 @@
       submitBtn.disabled = true;
       
       const current = selectedQuestions[currentQuestionIndex];
-      const isCorrect = current.answers.some(ans => ans.toLowerCase() === userAnswer);
+      const isCorrect = current.answers.some(function(ans) {
+        return ans.toLowerCase() === userAnswer;
+      });
       
       if (isCorrect) {
         correctAnswers++;
@@ -757,7 +434,7 @@
         showFeedback("Not quite! Try to think harder next time.", false, 'clair-skeptical.jpg');
       }
       
-      setTimeout(() => {
+      setTimeout(function() {
         currentQuestionIndex++;
         showQuestion();
       }, 2500);
@@ -770,7 +447,7 @@
       
       spinnerEl.style.display = 'block';
       
-      setTimeout(() => {
+      setTimeout(function() {
         spinnerEl.style.display = 'none';
         resultEl.textContent = message;
         resultEl.style.color = isCorrect ? '#10b981' : '#ef4444';
@@ -795,15 +472,14 @@
       updateProgress();
       
       if (passed) {
-        questionEl.textContent = `Congratulations! You passed! 🎊`;
-        resultEl.innerHTML = `You got <strong>${correctAnswers} out of ${totalQuestions}</strong> correct (${percentage}%)!<br><br>You've earned the right to move to the next level!`;
+        questionEl.textContent = 'Congratulations! You passed! 🎊';
+        resultEl.innerHTML = 'You got <strong>' + correctAnswers + ' out of ' + totalQuestions + '</strong> correct (' + percentage + '%)!<br><br>You\'ve earned the right to move to the next level!';
         resultEl.style.color = '#10b981';
         resultEl.style.background = 'rgba(16, 185, 129, 0.15)';
         avatarEl.src = 'clair-smile.jpg';
         buttonEl.textContent = 'Next Level →';
         buttonEl.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        buttonEl.onclick = () => {
-          // Clear penalty data when moving to next level
+        buttonEl.onclick = function() {
           sessionStorage.removeItem('penaltyEndTime');
           sessionStorage.removeItem('penaltyCount');
           sessionStorage.removeItem('quizStartTime');
@@ -811,26 +487,205 @@
           location.reload();
         };
       } else {
-        questionEl.textContent = `Not quite there yet... 😔`;
-        resultEl.innerHTML = `You got <strong>${correctAnswers} out of ${totalQuestions}</strong> correct (${percentage}%).<br><br>You need at least 4 correct answers to pass.<br>Let's try again!`;
+        questionEl.textContent = 'Not quite there yet... 😔';
+        resultEl.innerHTML = 'You got <strong>' + correctAnswers + ' out of ' + totalQuestions + '</strong> correct (' + percentage + '%).<br><br>You need at least 4 correct answers to pass.<br><br>Restarting automatically in <span id="retryCountdown">3</span> seconds...';
         resultEl.style.color = '#ef4444';
         resultEl.style.background = 'rgba(239, 68, 68, 0.15)';
         avatarEl.src = 'clair-skeptical.jpg';
-        buttonEl.textContent = '🔄 Try Again';
-        buttonEl.onclick = () => {
-          // Clear penalty data when retrying
-          sessionStorage.removeItem('penaltyEndTime');
-          sessionStorage.removeItem('penaltyCount');
-          sessionStorage.removeItem('quizStartTime');
-          location.reload();
-        };
+        buttonEl.style.display = 'none';
+        
+        // Auto-restart countdown
+        let countdown = 3;
+        const countdownInterval = setInterval(function() {
+          countdown--;
+          const countdownEl = document.getElementById('retryCountdown');
+          if (countdownEl) {
+            countdownEl.textContent = countdown;
+          }
+          
+          if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            location.reload();
+          }
+        }, 1000);
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function triggerPenalty(reason) {
+      if (isPenaltyActive) return;
+      
+      penaltyCount++;
+      currentPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000);
+      isPenaltyActive = true;
+      penaltyEndTime = Date.now() + currentPenaltyDuration;
+      
+      sessionStorage.setItem('penaltyEndTime', penaltyEndTime.toString());
+      sessionStorage.setItem('penaltyCount', penaltyCount.toString());
+      
+      showPenaltyOverlay(reason, currentPenaltyDuration);
+    }
+
+    function showPenaltyOverlay(reason, duration) {
+      const existingOverlay = document.getElementById('penaltyOverlay');
+      if (existingOverlay) {
+        existingOverlay.remove();
+      }
+
+      const overlay = document.createElement('div');
+      overlay.className = 'penalty-overlay';
+      overlay.id = 'penaltyOverlay';
+      
+      const initialSeconds = Math.ceil(duration / 1000);
+      
+      overlay.innerHTML = '<div class="penalty-message">' + reason + '</div><div class="penalty-timer" id="penaltyTimer">' + initialSeconds + '</div><div class="penalty-warning">⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br>' + (penaltyCount > 1 ? '<strong style="color: #ef4444;">Violation #' + penaltyCount + ' - Penalty increased!</strong><br><small>Reloading won\'t help!</small>' : '') + '</div>';
+      document.body.appendChild(overlay);
+
+      const timerInterval = setInterval(function() {
+        const remaining = Math.ceil((penaltyEndTime - Date.now()) / 1000);
+        const timerEl = document.getElementById('penaltyTimer');
+        
+        if (timerEl) {
+          timerEl.textContent = remaining;
+        }
+
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          const overlayEl = document.getElementById('penaltyOverlay');
+          if (overlayEl) {
+            overlayEl.remove();
+          }
+          isPenaltyActive = false;
+          sessionStorage.removeItem('penaltyEndTime');
+        }
+      }, 100);
+    }
+
+    function addPenaltyTime() {
+      penaltyCount++;
+      penaltyEndTime += 45000;
+      
+      sessionStorage.setItem('penaltyEndTime', penaltyEndTime.toString());
+      sessionStorage.setItem('penaltyCount', penaltyCount.toString());
+      
+      const messageEl = document.querySelector('.penalty-message');
+      const warningEl = document.querySelector('.penalty-warning');
+      
+      if (messageEl) {
+        messageEl.textContent = 'Stop trying to cheat! ⛔';
+        messageEl.style.animation = 'none';
+        setTimeout(function() {
+          messageEl.style.animation = 'fadeIn 0.5s ease';
+        }, 10);
+      }
+      
+      if (warningEl) {
+        warningEl.innerHTML = '⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br><strong style="color: #ef4444;">Violation #' + penaltyCount + ' - +45 seconds added!</strong><br><small>Reloading won\'t help!</small>';
+      }
+    }
+
+    // Anti-cheat: Detect window visibility changes
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && currentQuestionIndex < totalQuestions) {
+        if (isPenaltyActive) {
+          addPenaltyTime();
+        } else {
+          triggerPenalty('Switching tabs detected! 🚫');
+        }
+      }
+    });
+
+    // Anti-cheat: Detect window blur
+    window.addEventListener('blur', function() {
+      if (currentQuestionIndex < totalQuestions) {
+        if (isPenaltyActive) {
+          addPenaltyTime();
+        } else {
+          triggerPenalty('Leaving the window detected! 🚫');
+        }
+      }
+    });
+
+    // Anti-cheat: Prevent screenshots
+    document.addEventListener('keyup', function(e) {
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+      if (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+    });
+
+    // Anti-cheat: Prevent right-click
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
+    });
+
+    // Anti-cheat: Prevent copying
+    document.addEventListener('copy', function(e) {
+      if (e.target.id !== 'answer') {
+        e.preventDefault();
+        triggerPenalty('Copying content detected! 🚫');
+        return false;
+      }
+    });
+
+    // Detect mobile screenshot attempts
+    let screenshotDetectionTimeout;
+    
+    // Prevent long-press on mobile
+    let longPressTimer;
+    document.addEventListener('touchstart', function(e) {
+      if (e.target.id !== 'answer') {
+        longPressTimer = setTimeout(function() {
+          e.preventDefault();
+          triggerPenalty('Long press detected! 🚫');
+        }, 500);
+      }
+    });
+
+    document.addEventListener('touchend', function() {
+      clearTimeout(longPressTimer);
+    });
+
+    document.addEventListener('touchmove', function() {
+      clearTimeout(longPressTimer);
+    });
+
+    // Detect page reload attempts during quiz
+    window.addEventListener('beforeunload', function(e) {
+      if (currentQuestionIndex < totalQuestions && currentQuestionIndex > 0) {
+        penaltyCount++;
+        const newPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000);
+        const newPenaltyEnd = Date.now() + newPenaltyDuration;
+        
+        sessionStorage.setItem('penaltyEndTime', newPenaltyEnd.toString());
+        sessionStorage.setItem('penaltyCount', penaltyCount.toString());
+        
+        e.preventDefault();
+        e.returnValue = 'Reloading will trigger an anti-cheat penalty!';
+        return e.returnValue;
+      }
+    });
+
+    // Allow Enter key to submit
+    document.addEventListener('DOMContentLoaded', function() {
       const answerEl = document.getElementById('answer');
       if (answerEl) {
-        answerEl.addEventListener('keypress', (e) => {
+        answerEl.addEventListener('keypress', function(e) {
           if (e.key === 'Enter') {
             submitAnswer();
           }

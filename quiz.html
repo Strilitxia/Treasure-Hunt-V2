@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Level 2 – Clair's Challenge</title>
+  <style>
+    * { box-sizing: border-box; }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e6eef8; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      min-height: 100vh; 
+      margin: 0;
+      padding: 20px;
+    }
+    
+    #quizContainer { 
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      padding: 32px; 
+      border-radius: 20px; 
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.05);
+      text-align: center;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .level-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #0ea5e9, #0b8bd6);
+      color: white;
+      padding: 6px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    }
+    
+    .avatar-container {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    
+    #clairAvatar { 
+      width: 100px; 
+      height: 100px; 
+      border-radius: 50%; 
+      object-fit: cover;
+      border: 4px solid #0b8bd6;
+      box-shadow: 0 8px 24px rgba(11, 139, 214, 0.3);
+      transition: all 0.3s ease;
+    }
+    
+    #clairAvatar:hover {
+      transform: scale(1.05);
+      box-shadow: 0 12px 32px rgba(11, 139, 214, 0.4);
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #0ea5e9, #06b6d4);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+    }
+    
+    #question { 
+      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 24px; 
+      min-height: 60px;
+      line-height: 1.6;
+      color: #f1f5f9;
+    }
+    
+    .input-container {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    
+    input[type=text] { 
+      width: 100%; 
+      padding: 14px 16px; 
+      border-radius: 12px; 
+      border: 2px solid rgba(11, 139, 214, 0.3);
+      background: rgba(2, 22, 31, 0.8);
+      color: #e6eef8; 
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+    
+    input[type=text]:focus {
+      outline: none;
+      border-color: #0b8bd6;
+      background: rgba(2, 22, 31, 1);
+      box-shadow: 0 0 0 4px rgba(11, 139, 214, 0.1);
+    }
+    
+    button { 
+      width: 100%; 
+      padding: 14px; 
+      border-radius: 12px; 
+      border: none; 
+      background: linear-gradient(135deg, #0ea5e9, #0b8bd6);
+      color: white; 
+      font-weight: 700; 
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(11, 139, 214, 0.3);
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(11, 139, 214, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    #result { 
+      margin-top: 16px; 
+      font-weight: 600;
+      font-size: 16px;
+      min-height: 24px;
+      padding: 12px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    
+    .score-display {
+      display: inline-block;
+      background: rgba(11, 139, 214, 0.1);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 12px;
+      border: 1px solid rgba(11, 139, 214, 0.3);
+    }
+    
+    #spinner { 
+      display: none; 
+      margin: 12px auto; 
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top: 4px solid #0b8bd6;
+      border-radius: 50%; 
+      width: 40px; 
+      height: 40px; 
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin { 
+      0% { transform: rotate(0deg); } 
+      100% { transform: rotate(360deg); } 
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease;
+    }
+
+    .penalty-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .penalty-message {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ef4444;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .penalty-timer {
+      font-size: 48px;
+      font-weight: 900;
+      color: #0ea5e9;
+      text-shadow: 0 0 20px rgba(14, 165, 233, 0.5);
+    }
+
+    .penalty-warning {
+      font-size: 16px;
+      color: #94a3b8;
+      text-align: center;
+      max-width: 400px;
+      padding: 0 20px;
+    }
+
+    /* Prevent text selection */
+    body {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none; /* iOS Safari */
+    }
+
+    input[type=text] {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
+
+    /* Prevent screenshot overlay */
+    #quizContainer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+</head>
+<body onload="startQuiz()">
+  <div id="quizContainer" class="fade-in">
+    <div class="level-badge">LEVEL 2</div>
+    <div class="avatar-container">
+      <img id="clairAvatar" src="clair-neutral.jpg" alt="Clair" />
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+    <div id="spinner"></div>
+    <div id="question"></div>
+    <div class="input-container">
+      <input type="text" id="answer" placeholder="Type your answer here..." />
+    </div>
+    <button onclick="submitAnswer()" id="submitBtn">Submit Answer</button>
+    <div id="result"></div>
+    <div class="score-display" id="scoreDisplay" style="display: none;">Score: 0/6</div>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        question: "I speak without a mouth and hear without ears. What am I?",
+        answers: ["echo"],
+        reaction: "clair-thinking.jpg"
+      },
+      {
+        question: "What has keys but can't open locks?",
+        answers: ["piano", "keyboard"],
+        reaction: "clair-smile.jpg"
+      },
+      {
+        question: "What can run but never walks, has a mouth but never talks?",
+        answers: ["river"],
+        reaction: "clair-neutral.jpg"
+      },
+      {
+        question: "The more you take, the more you leave behind. What am I?",
+        answers: ["footsteps", "steps"],
+        reaction: "clair-skeptical.jpg"
+      },
+      {
+        question: "What gets wetter the more it dries?",
+        answers: ["towel"],
+        reaction: "clair-thinking.jpg"
+      },
+      {
+        question: "What has to be broken before you can use it?",
+        answers: ["egg"],
+        reaction: "clair-smile.jpg"
+      },
+      {
+        question: "I'm always in front of you but can't be seen. What am I?",
+        answers: ["future"],
+        reaction: "clair-neutral.jpg"
+      },
+      {
+        question: "What has hands but cannot clap?",
+        answers: ["clock", "watch"],
+        reaction: "clair-thinking.jpg"
+      },
+      {
+        question: "What goes up but never comes down?",
+        answers: ["age"],
+        reaction: "clair-smile.jpg"
+      },
+      {
+        question: "What has a head and tail but no body?",
+        answers: ["coin"],
+        reaction: "clair-neutral.jpg"
+      }
+    ];
+
+    let currentQuestionIndex = 0;
+    let selectedQuestions = [];
+    let correctAnswers = 0;
+    let totalQuestions = 6;
+    let isPenaltyActive = false;
+    let penaltyEndTime = 0;
+    let penaltyCount = 0;
+    let currentPenaltyDuration = 15000; // Start with 15 seconds
+
+    // Anti-cheat: Detect window visibility changes
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && currentQuestionIndex < totalQuestions) {
+        if (isPenaltyActive) {
+          // Add more time if already in penalty
+          addPenaltyTime();
+        } else {
+          triggerPenalty('Switching tabs detected! 🚫');
+        }
+      }
+    });
+
+    // Anti-cheat: Detect window blur (switching windows)
+    window.addEventListener('blur', function() {
+      if (currentQuestionIndex < totalQuestions) {
+        if (isPenaltyActive) {
+          // Add more time if already in penalty
+          addPenaltyTime();
+        } else {
+          triggerPenalty('Leaving the window detected! 🚫');
+        }
+      }
+    });
+
+    // Anti-cheat: Prevent screenshots
+    document.addEventListener('keyup', function(e) {
+      // Detect Print Screen, Windows Key + Shift + S (Snipping Tool), etc.
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      // Detect Print Screen
+      if (e.key === 'PrintScreen' || e.keyCode === 44) {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+      // Detect Windows + Shift + S (Windows Snipping Tool)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 's') {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+      // Detect Cmd + Shift + 3/4/5 (Mac screenshots)
+      if (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) {
+        e.preventDefault();
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+    });
+
+    // Anti-cheat: Prevent right-click context menu
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
+    });
+
+    // Anti-cheat: Prevent copying
+    document.addEventListener('copy', function(e) {
+      if (e.target.id !== 'answer') {
+        e.preventDefault();
+        triggerPenalty('Copying content detected! 🚫');
+        return false;
+      }
+    });
+
+    // Anti-cheat: Detect mobile screenshot attempts (Android/iOS)
+    // Detect when page loses focus (happens during screenshot on mobile)
+    let screenshotDetectionTimeout;
+    
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        screenshotDetectionTimeout = setTimeout(function() {
+          // If page was hidden for very short time (typical screenshot behavior)
+          if (!document.hidden) {
+            triggerPenalty('Screenshot attempt detected! 🚫');
+          }
+        }, 100);
+      } else {
+        clearTimeout(screenshotDetectionTimeout);
+      }
+    });
+
+    // Detect screen recording on iOS/Android
+    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+      const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia;
+      navigator.mediaDevices.getDisplayMedia = function() {
+        triggerPenalty('Screen recording detected! 🚫');
+        return Promise.reject(new Error('Screen recording is not allowed'));
+      };
+    }
+
+    // Prevent long-press on mobile (triggers save/screenshot options)
+    let longPressTimer;
+    document.addEventListener('touchstart', function(e) {
+      if (e.target.id !== 'answer') {
+        longPressTimer = setTimeout(function() {
+          e.preventDefault();
+          triggerPenalty('Long press detected! 🚫');
+        }, 500);
+      }
+    });
+
+    document.addEventListener('touchend', function() {
+      clearTimeout(longPressTimer);
+    });
+
+    document.addEventListener('touchmove', function() {
+      clearTimeout(longPressTimer);
+    });
+
+    // Detect power button + volume down (Android screenshot combo)
+    let lastKeyTime = 0;
+    document.addEventListener('keydown', function(e) {
+      const currentTime = Date.now();
+      // If multiple keys pressed within 100ms (screenshot combo)
+      if (currentTime - lastKeyTime < 100) {
+        triggerPenalty('Screenshot attempt detected! 🚫');
+      }
+      lastKeyTime = currentTime;
+    });
+
+    // Prevent iOS screenshot sharing
+    if (navigator.share) {
+      const originalShare = navigator.share;
+      navigator.share = function() {
+        triggerPenalty('Sharing attempt detected! 🚫');
+        return Promise.reject(new Error('Sharing is not allowed'));
+      };
+    }
+
+    // Monitor for screenshot-like patterns
+    window.addEventListener('resize', function() {
+      // Screenshots sometimes trigger resize events on mobile
+      if (document.hidden && currentQuestionIndex < totalQuestions) {
+        triggerPenalty('Suspicious activity detected! 🚫');
+      }
+    });
+
+    function triggerPenalty(reason) {
+      if (isPenaltyActive) return;
+      
+      penaltyCount++;
+      currentPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000); // 15s + 45s for each additional violation
+      isPenaltyActive = true;
+      penaltyEndTime = Date.now() + currentPenaltyDuration;
+
+      // Create penalty overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'penalty-overlay';
+      overlay.id = 'penaltyOverlay';
+      
+      const initialSeconds = Math.ceil(currentPenaltyDuration / 1000);
+      
+      overlay.innerHTML = `
+        <div class="penalty-message">${reason}</div>
+        <div class="penalty-timer" id="penaltyTimer">${initialSeconds}</div>
+        <div class="penalty-warning">⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br>${penaltyCount > 1 ? `<strong style="color: #ef4444;">Violation #${penaltyCount} - Penalty increased!</strong>` : ''}</div>
+      `;
+      document.body.appendChild(overlay);
+
+      // Update timer every 100ms
+      const timerInterval = setInterval(() => {
+        const remaining = Math.ceil((penaltyEndTime - Date.now()) / 1000);
+        const timerEl = document.getElementById('penaltyTimer');
+        
+        if (timerEl) {
+          timerEl.textContent = remaining;
+        }
+
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          const overlayEl = document.getElementById('penaltyOverlay');
+          if (overlayEl) {
+            overlayEl.remove();
+          }
+          isPenaltyActive = false;
+        }
+      }, 100);
+    }
+
+    function addPenaltyTime() {
+      penaltyCount++;
+      penaltyEndTime += 45000; // Add 45 more seconds
+      
+      const messageEl = document.querySelector('.penalty-message');
+      const warningEl = document.querySelector('.penalty-warning');
+      
+      if (messageEl) {
+        messageEl.textContent = 'Stop trying to cheat! ⛔';
+        messageEl.style.animation = 'none';
+        setTimeout(() => {
+          messageEl.style.animation = 'fadeIn 0.5s ease';
+        }, 10);
+      }
+      
+      if (warningEl) {
+        warningEl.innerHTML = `⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br><strong style="color: #ef4444;">Violation #${penaltyCount} - +45 seconds added!</strong>`;
+      }
+    }
+
+    function startQuiz() {
+      const shuffled = [...questions].sort(() => Math.random() - 0.5);
+      selectedQuestions = shuffled.slice(0, totalQuestions);
+      
+      currentQuestionIndex = 0;
+      correctAnswers = 0;
+      
+      document.getElementById('scoreDisplay').style.display = 'inline-block';
+      updateScore();
+      showQuestion();
+    }
+
+    function updateScore() {
+      document.getElementById('scoreDisplay').textContent = `Score: ${correctAnswers}/${totalQuestions}`;
+    }
+
+    function updateProgress() {
+      const progress = (currentQuestionIndex / totalQuestions) * 100;
+      document.getElementById('progressFill').style.width = progress + '%';
+    }
+
+    function showQuestion() {
+      if (currentQuestionIndex >= selectedQuestions.length) {
+        showResults();
+        return;
+      }
+      
+      const current = selectedQuestions[currentQuestionIndex];
+      const questionEl = document.getElementById('question');
+      const answerEl = document.getElementById('answer');
+      const resultEl = document.getElementById('result');
+      const avatarEl = document.getElementById('clairAvatar');
+      const submitBtn = document.getElementById('submitBtn');
+      
+      questionEl.textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}: ${current.question}`;
+      answerEl.value = '';
+      answerEl.disabled = false;
+      resultEl.textContent = '';
+      avatarEl.src = 'clair-neutral.jpg';
+      submitBtn.disabled = false;
+      answerEl.focus();
+      
+      updateProgress();
+    }
+
+    function submitAnswer() {
+      const answerEl = document.getElementById('answer');
+      const submitBtn = document.getElementById('submitBtn');
+      const userAnswer = answerEl.value.trim().toLowerCase();
+      
+      if (!userAnswer) {
+        showFeedback("Please enter an answer!", false, 'clair-skeptical.jpg');
+        return;
+      }
+      
+      answerEl.disabled = true;
+      submitBtn.disabled = true;
+      
+      const current = selectedQuestions[currentQuestionIndex];
+      const isCorrect = current.answers.some(ans => ans.toLowerCase() === userAnswer);
+      
+      if (isCorrect) {
+        correctAnswers++;
+        updateScore();
+        showFeedback("Correct! Well done! 🎉", true, current.reaction);
+      } else {
+        showFeedback("Not quite! Try to think harder next time.", false, 'clair-skeptical.jpg');
+      }
+      
+      setTimeout(() => {
+        currentQuestionIndex++;
+        showQuestion();
+      }, 2500);
+    }
+
+    function showFeedback(message, isCorrect, reactionImage) {
+      const resultEl = document.getElementById('result');
+      const avatarEl = document.getElementById('clairAvatar');
+      const spinnerEl = document.getElementById('spinner');
+      
+      spinnerEl.style.display = 'block';
+      
+      setTimeout(() => {
+        spinnerEl.style.display = 'none';
+        resultEl.textContent = message;
+        resultEl.style.color = isCorrect ? '#10b981' : '#ef4444';
+        resultEl.style.background = isCorrect ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+        avatarEl.src = reactionImage;
+      }, 600);
+    }
+
+    function showResults() {
+      const questionEl = document.getElementById('question');
+      const answerEl = document.getElementById('answer');
+      const resultEl = document.getElementById('result');
+      const avatarEl = document.getElementById('clairAvatar');
+      const buttonEl = document.getElementById('submitBtn');
+      const scoreDisplay = document.getElementById('scoreDisplay');
+      
+      const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+      const passed = correctAnswers >= 4;
+      
+      answerEl.style.display = 'none';
+      scoreDisplay.style.display = 'none';
+      updateProgress();
+      
+      if (passed) {
+        questionEl.textContent = `Congratulations! You passed! 🎊`;
+        resultEl.innerHTML = `You got <strong>${correctAnswers} out of ${totalQuestions}</strong> correct (${percentage}%)!<br><br>You've earned the right to move to the next level!`;
+        resultEl.style.color = '#10b981';
+        resultEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        avatarEl.src = 'clair-smile.jpg';
+        buttonEl.textContent = 'Next Level →';
+        buttonEl.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        buttonEl.onclick = () => {
+          alert('Moving to Level 3! (This would link to the next challenge)');
+          location.reload();
+        };
+      } else {
+        questionEl.textContent = `Not quite there yet... 😔`;
+        resultEl.innerHTML = `You got <strong>${correctAnswers} out of ${totalQuestions}</strong> correct (${percentage}%).<br><br>You need at least 4 correct answers to pass.<br>Let's try again!`;
+        resultEl.style.color = '#ef4444';
+        resultEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        avatarEl.src = 'clair-skeptical.jpg';
+        buttonEl.textContent = '🔄 Try Again';
+        buttonEl.onclick = () => location.reload();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const answerEl = document.getElementById('answer');
+      if (answerEl) {
+        answerEl.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            submitAnswer();
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

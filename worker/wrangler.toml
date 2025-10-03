@@ -1,0 +1,4 @@
+name = "treasure-hunt-ai"
+main = "index.js"
+compatibility_date = "2025-10-03"
+

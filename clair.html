@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Level 2 — Clair (Gatekeeper)</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Arial;background:#0f172a;color:#e6eef8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+  .app{width:360px;background:#0b1220;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,.6);overflow:hidden}
+  .header{display:flex;gap:12px;padding:12px;align-items:center;background:linear-gradient(90deg,#071028,#0b1a2c)}
+  .avatar{width:64px;height:64px;border-radius:10px;flex:0 0 64px;background:#111 center/cover no-repeat url('clair-neutral.jpg')}
+  .title{font-weight:700}
+  .chat{height:420px;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#071021,#07131a)}
+  .msg{max-width:78%;padding:8px 10px;border-radius:10px}
+  .clair{align-self:flex-start;background:#102033}
+  .you{align-self:flex-end;background:#1f6f8b}
+  .controls{display:flex;gap:8px;padding:10px;background:#04121a}
+  input[type="text"]{flex:1;padding:8px;border-radius:8px;border:1px solid #0b3141;background:#02161f;color:#e6eef8}
+  button{padding:8px 12px;border-radius:8px;border:0;background:#0b8bd6;color:white;font-weight:600}
+  #passbox{border-top:1px solid rgba(255,255,255,.03);padding:10px;display:flex;gap:8px;align-items:center}
+  #passkeyInput{flex:1;padding:8px;border-radius:8px;background:#08161f;border:1px solid #083046;color:#bfe9ff}
+  .small{font-size:12px;opacity:.8}
+  .status{font-size:12px;color:#9fbcd9;margin-left:auto}
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Clair gatekeeper chat">
+    <div class="header">
+      <div class="avatar" id="clairAvatar" title="Clair"></div>
+      <div style="flex:1">
+        <div class="title">Clair — Gatekeeper</div>
+        <div class="small">Strong, medieval, kind-hearted</div>
+      </div>
+      <div class="status" id="modelStatus">Model: Gemini</div>
+    </div>
+
+    <div class="chat" id="chat"></div>
+
+    <div class="controls">
+      <input id="userInput" type="text" placeholder="Say something to Clair..." autocomplete="off" />
+      <button id="sendBtn">Send</button>
+    </div>
+
+    <div id="passbox">
+      <input id="passkeyInput" placeholder="Enter passkey to proceed" />
+      <button id="checkBtn">Check</button>
+      <div class="small" style="margin-left:8px">State: <span id="stateLabel">skeptical</span></div>
+    </div>
+  </div>
+
+<script>
+/* ---------------------------
+   CONFIG
+   --------------------------- */
+const GEMINI_ENDPOINT = "/api/gemini"; // Firebase Function endpoint
+const PASSKEY_PREFIX = "Clair-";  // passkey format
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 1 day responses cache
+
+/* ---------------------------
+   STATE
+   --------------------------- */
+let convinced = false;
+let state = "skeptical"; // states: neutral -> skeptical -> warming -> convinced
+const chatEl = document.getElementById("chat");
+const userInput = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const checkBtn = document.getElementById("checkBtn");
+const passkeyInput = document.getElementById("passkeyInput");
+const stateLabel = document.getElementById("stateLabel");
+const clairAvatar = document.getElementById("clairAvatar");
+
+/* ---------------------------
+   UTILS
+   --------------------------- */
+function addMessage(text, who="clair") {
+  const div = document.createElement("div");
+  div.className = "msg " + (who==="you" ? "you" : "clair");
+  div.textContent = text;
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+function setState(s) {
+  state = s;
+  stateLabel.textContent = s;
+  clairAvatar.style.backgroundImage = s === "convinced" ? "url('clair-smile.jpg')" :
+                                      s === "warming" ? "url('clair-warm.jpg')" :
+                                      s === "neutral" ? "url('clair-neutral.jpg')" : "url('clair-skeptical.jpg')";
+}
+
+/* ---------------------------
+   RULE-BASED CORE
+   --------------------------- */
+const RULES = [
+  {keywords:["friend","ally"], to:"warm", reply:"You say you are my ally? Many claim that. Show me your intent and I will listen."},
+  {keywords:["help","aid","assist"], to:"warm", reply:"Help is rare and precious. Tell me why I should open the gate for you."},
+  {keywords:["proof","evidence","letter","sealed"], to:"warming", reply:"Evidence is seen by the eyes of truth. Speak plainly and I may be swayed."},
+  {keywords:["please","kindly","beg"], to:"warm", reply:"Begging alone moves stones, not me. Speak with purpose."},
+  {keywords:["gift"], to:"warming", reply:"Gifts mean something when given freely. Describe it."},
+  {keywords:["pass","let me","allow me","open"], to:"neutral", reply:"You must convince me. Convince me I should let you pass."}
+];
+
+function ruleBasedReply(text) {
+  const t = text.toLowerCase();
+  for (const rule of RULES) {
+    for (const k of rule.keywords) {
+      if (t.includes(k)) {
+        setState(rule.to);
+        return rule.reply;
+      }
+    }
+  }
+  if (state === "warming") return "Your words test my patience. Give me one true reason.";
+  if (state === "warm") return "You tread carefully. Offer proof or a pledge.";
+  if (state === "neutral") return "Outsider. Prove your worth.";
+  return "I remain unconvinced. Speak clearly or be gone.";
+}
+
+function isConvincing(text) {
+  const t = text.toLowerCase();
+  const triggers = ["i am one of your kin","i have proof","i carry the sigil","guardian-pledge","i saved a child"];
+  for (const tr of triggers) if (t.includes(tr)) return true;
+  return false;
+}
+
+function makePasskey() {
+  const rnd = Math.random().toString(36).slice(2,8).toUpperCase();
+  return PASSKEY_PREFIX + rnd;
+}
+
+function cacheWrite(key, val) {
+  try { localStorage.setItem("clair_cache__" + key, JSON.stringify({t:Date.now(),v:val})); } catch(e){}
+}
+function cacheRead(key) {
+  try {
+    const s = localStorage.getItem("clair_cache__" + key);
+    if (!s) return null;
+    const o = JSON.parse(s);
+    if (Date.now() - o.t > CACHE_TTL_MS) { localStorage.removeItem("clair_cache__" + key); return null; }
+    return o.v;
+  } catch(e) { return null; }
+}
+
+/* ---------------------------
+   GEMINI API CALL
+   --------------------------- */
+async function callGeminiAI(message) {
+  try {
+    const res = await fetch(GEMINI_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
+    if (!res.ok) throw new Error(`Gemini error ${res.status}`);
+    const data = await res.json();
+    return data.reply || "Clair remains silent...";
+  } catch (err) {
+    console.warn("Gemini API failed, falling back to rule-based:", err.message);
+    return null; // triggers fallback
+  }
+}
+
+/* ---------------------------
+   MAIN REPLY GENERATOR
+   --------------------------- */
+async function generateReplyWithTimeout(text) {
+  addMessage("⏳ Clair is thinking...", "clair");
+  const thinkingNode = chatEl.lastChild;
+
+  if (isConvincing(text)) {
+    setState("convinced");
+    convinced = true;
+    const pass = makePasskey();
+    cacheWrite("passkey", pass);
+    thinkingNode.textContent = `...You have convinced me. My passkey for you: ${pass}`;
+    return;
+  }
+
+  // try Gemini API first
+  const geminiReply = await callGeminiAI(text);
+  thinkingNode.textContent = geminiReply || ruleBasedReply(text);
+}
+
+/* ---------------------------
+   CHECK PASSKEY
+   --------------------------- */
+function checkPasskey() {
+  const entered = passkeyInput.value.trim();
+  const actual = cacheRead("passkey");
+  if (entered && actual && entered === actual) {
+    alert("🎉 Correct passkey! Proceeding to Level 3...");
+    window.location.href = "level3.html";
+  } else {
+    alert("❌ Incorrect passkey. Convince Clair or check messages.");
+  }
+}
+
+/* ---------------------------
+   EVENT BINDINGS
+   --------------------------- */
+sendBtn.addEventListener("click", ()=> generateReplyWithTimeout(userInput.value.trim()));
+userInput.addEventListener("keydown", (e)=> { if(e.key==="Enter") generateReplyWithTimeout(userInput.value.trim()); });
+checkBtn.addEventListener("click", checkPasskey);
+
+/* ---------------------------
+   INITIAL GREETING
+   --------------------------- */
+setState("skeptical");
+addMessage("I am Clair. Outsider, speak your reason for passage.", "clair");
+</script>
+</body>
+</html>

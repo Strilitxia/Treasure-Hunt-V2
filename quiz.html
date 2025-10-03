@@ -342,6 +342,137 @@
     let penaltyEndTime = 0;
     let penaltyCount = 0;
     let currentPenaltyDuration = 15000; // Start with 15 seconds
+    let quizStartTime = 0;
+
+    // Check for existing penalty on page load
+    function checkExistingPenalty() {
+      const savedPenaltyEnd = sessionStorage.getItem('penaltyEndTime');
+      const savedPenaltyCount = sessionStorage.getItem('penaltyCount');
+      const savedQuizStart = sessionStorage.getItem('quizStartTime');
+      
+      if (savedPenaltyCount) {
+        penaltyCount = parseInt(savedPenaltyCount);
+      }
+      
+      if (savedQuizStart) {
+        quizStartTime = parseInt(savedQuizStart);
+      }
+      
+      if (savedPenaltyEnd) {
+        const endTime = parseInt(savedPenaltyEnd);
+        const remaining = endTime - Date.now();
+        
+        if (remaining > 0) {
+          // Still in penalty period
+          penaltyEndTime = endTime;
+          isPenaltyActive = true;
+          showPenaltyOverlay('Page reload detected! 🚫', remaining);
+        } else {
+          // Penalty expired, clear it
+          sessionStorage.removeItem('penaltyEndTime');
+        }
+      }
+    }
+
+    // Enhanced penalty trigger with session storage
+    function triggerPenalty(reason) {
+      if (isPenaltyActive) return;
+      
+      penaltyCount++;
+      currentPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000); // 15s + 45s for each additional violation
+      isPenaltyActive = true;
+      penaltyEndTime = Date.now() + currentPenaltyDuration;
+      
+      // Save to sessionStorage
+      sessionStorage.setItem('penaltyEndTime', penaltyEndTime.toString());
+      sessionStorage.setItem('penaltyCount', penaltyCount.toString());
+      
+      showPenaltyOverlay(reason, currentPenaltyDuration);
+    }
+
+    function showPenaltyOverlay(reason, duration) {
+      // Remove existing overlay if present
+      const existingOverlay = document.getElementById('penaltyOverlay');
+      if (existingOverlay) {
+        existingOverlay.remove();
+      }
+
+      // Create penalty overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'penalty-overlay';
+      overlay.id = 'penaltyOverlay';
+      
+      const initialSeconds = Math.ceil(duration / 1000);
+      
+      overlay.innerHTML = `
+        <div class="penalty-message">${reason}</div>
+        <div class="penalty-timer" id="penaltyTimer">${initialSeconds}</div>
+        <div class="penalty-warning">⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br>${penaltyCount > 1 ? `<strong style="color: #ef4444;">Violation #${penaltyCount} - Penalty increased!</strong><br><small>Reloading won't help!</small>` : ''}</div>
+      `;
+      document.body.appendChild(overlay);
+
+      // Update timer every 100ms
+      const timerInterval = setInterval(() => {
+        const remaining = Math.ceil((penaltyEndTime - Date.now()) / 1000);
+        const timerEl = document.getElementById('penaltyTimer');
+        
+        if (timerEl) {
+          timerEl.textContent = remaining;
+        }
+
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          const overlayEl = document.getElementById('penaltyOverlay');
+          if (overlayEl) {
+            overlayEl.remove();
+          }
+          isPenaltyActive = false;
+          sessionStorage.removeItem('penaltyEndTime');
+        }
+      }, 100);
+    }
+
+    function addPenaltyTime() {
+      penaltyCount++;
+      penaltyEndTime += 45000; // Add 45 more seconds
+      
+      // Update sessionStorage
+      sessionStorage.setItem('penaltyEndTime', penaltyEndTime.toString());
+      sessionStorage.setItem('penaltyCount', penaltyCount.toString());
+      
+      const messageEl = document.querySelector('.penalty-message');
+      const warningEl = document.querySelector('.penalty-warning');
+      
+      if (messageEl) {
+        messageEl.textContent = 'Stop trying to cheat! ⛔';
+        messageEl.style.animation = 'none';
+        setTimeout(() => {
+          messageEl.style.animation = 'fadeIn 0.5s ease';
+        }, 10);
+      }
+      
+      if (warningEl) {
+        warningEl.innerHTML = `⚠️ Cheating is not allowed!<br>Wait for the timer to continue.<br><br><strong style="color: #ef4444;">Violation #${penaltyCount} - +45 seconds added!</strong><br><small>Reloading won't help!</small>`;
+      }
+    }
+
+    // Detect page reload/refresh attempts during quiz
+    window.addEventListener('beforeunload', function(e) {
+      if (currentQuestionIndex < totalQuestions && currentQuestionIndex > 0) {
+        // User is trying to reload during quiz
+        penaltyCount++;
+        const newPenaltyDuration = 15000 + ((penaltyCount - 1) * 45000);
+        const newPenaltyEnd = Date.now() + newPenaltyDuration;
+        
+        sessionStorage.setItem('penaltyEndTime', newPenaltyEnd.toString());
+        sessionStorage.setItem('penaltyCount', penaltyCount.toString());
+        
+        // Show browser warning (optional)
+        e.preventDefault();
+        e.returnValue = 'Reloading will trigger an anti-cheat penalty!';
+        return e.returnValue;
+      }
+    });
 
     // Anti-cheat: Detect window visibility changes
     document.addEventListener('visibilitychange', function() {
@@ -545,6 +676,15 @@
     }
 
     function startQuiz() {
+      // Check for existing penalty first
+      checkExistingPenalty();
+      
+      // Initialize quiz start time
+      if (!sessionStorage.getItem('quizStartTime')) {
+        quizStartTime = Date.now();
+        sessionStorage.setItem('quizStartTime', quizStartTime.toString());
+      }
+      
       const shuffled = [...questions].sort(() => Math.random() - 0.5);
       selectedQuestions = shuffled.slice(0, totalQuestions);
       
@@ -553,7 +693,11 @@
       
       document.getElementById('scoreDisplay').style.display = 'inline-block';
       updateScore();
-      showQuestion();
+      
+      // Only show question if not in penalty
+      if (!isPenaltyActive) {
+        showQuestion();
+      }
     }
 
     function updateScore() {
@@ -659,6 +803,10 @@
         buttonEl.textContent = 'Next Level →';
         buttonEl.style.background = 'linear-gradient(135deg, #10b981, #059669)';
         buttonEl.onclick = () => {
+          // Clear penalty data when moving to next level
+          sessionStorage.removeItem('penaltyEndTime');
+          sessionStorage.removeItem('penaltyCount');
+          sessionStorage.removeItem('quizStartTime');
           alert('Moving to Level 3! (This would link to the next challenge)');
           location.reload();
         };
@@ -669,7 +817,13 @@
         resultEl.style.background = 'rgba(239, 68, 68, 0.15)';
         avatarEl.src = 'clair-skeptical.jpg';
         buttonEl.textContent = '🔄 Try Again';
-        buttonEl.onclick = () => location.reload();
+        buttonEl.onclick = () => {
+          // Clear penalty data when retrying
+          sessionStorage.removeItem('penaltyEndTime');
+          sessionStorage.removeItem('penaltyCount');
+          sessionStorage.removeItem('quizStartTime');
+          location.reload();
+        };
       }
     }
 
